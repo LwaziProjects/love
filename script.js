@@ -25,17 +25,21 @@ const GITHUB_REPO = 'LwaziProjects/love';
 const GITHUB_RAW_URL = `https://raw.githubusercontent.com/${GITHUB_REPO}/main/photos`;
 const GITHUB_API_URL = `https://api.github.com/repos/${GITHUB_REPO}/contents/photos`;
 
-// Load photos from GitHub repository dynamically
+// Load photos from GitHub repository
 async function loadPhotos() {
     const gallery = document.getElementById('photoGallery');
+    const noPhotosMsg = document.querySelector('.no-photos-message');
     
     try {
         // Fetch the list of files from the photos folder using GitHub API
-        const response = await fetch(GITHUB_API_URL);
+        const response = await fetch(GITHUB_API_URL, {
+            headers: {
+                'Accept': 'application/vnd.github.v3+json'
+            }
+        });
         
         if (!response.ok) {
-            console.error('Failed to fetch photos from GitHub API');
-            return;
+            throw new Error('GitHub API call failed');
         }
         
         const files = await response.json();
@@ -43,83 +47,79 @@ async function loadPhotos() {
         // Filter for image files only
         const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'];
         const photoFiles = files.filter(file => {
+            if (file.type !== 'file') return false;
             const ext = file.name.split('.').pop().toLowerCase();
-            return file.type === 'file' && imageExtensions.includes(ext);
+            return imageExtensions.includes(ext);
         });
         
         // Sort photos alphabetically
         photoFiles.sort((a, b) => a.name.localeCompare(b.name));
         
-        if (photoFiles.length === 0) {
-            console.log('No photos found in the photos folder');
-            return;
-        }
+        console.log(`Found ${photoFiles.length} photos from GitHub API`);
         
-        // Load each photo
-        photoFiles.forEach((file) => {
-            const photoURL = `${GITHUB_RAW_URL}/${file.name}`;
-            displayPhoto(photoURL);
-        });
-        
-        // Hide no-photos message when photos are loaded
         if (photoFiles.length > 0) {
-            const noPhotosMsg = document.querySelector('.no-photos-message');
+            // Load each photo
+            for (const file of photoFiles) {
+                const photoURL = `${GITHUB_RAW_URL}/${encodeURIComponent(file.name)}`;
+                const photoIndex = photos.length;
+                photos.push(photoURL);
+                displayPhoto(photoURL, photoIndex);
+            }
+            
+            // Hide no-photos message
             if (noPhotosMsg) {
                 noPhotosMsg.style.display = 'none';
             }
+        } else {
+            throw new Error('No photos found via API');
         }
     } catch (error) {
-        console.error('Error loading photos:', error);
-        // Fallback: try to load photos with standard names
-        loadPhotosWithStandardNames();
+        console.warn('GitHub API approach failed, trying direct URL method:', error);
+        // Fallback: Try to load photos by testing common filenames
+        loadPhotosDirectly();
     }
 }
 
-// Fallback function to load photos with standard names
-function loadPhotosWithStandardNames() {
-    const photoNames = [
+// Fallback: Load photos by trying to fetch them directly
+async function loadPhotosDirectly() {
+    const noPhotosMsg = document.querySelector('.no-photos-message');
+    const commonNames = [
         'photo1.jpg', 'photo2.jpg', 'photo3.jpg', 'photo4.jpg', 'photo5.jpg',
         'photo6.jpg', 'photo7.jpg', 'photo8.jpg', 'photo9.jpg', 'photo10.jpg',
-        'photo11.jpg', 'photo12.jpg'
+        'photo11.jpg', 'photo12.jpg', 'photo13.jpg', 'photo14.jpg', 'photo15.jpg',
+        'photo16.jpg', 'photo17.jpg', 'photo18.jpg', 'photo19.jpg', 'photo20.jpg'
     ];
     
-    let photosLoaded = 0;
+    let photosFound = 0;
     
-    // Try to load each photo from GitHub
-    photoNames.forEach((photoName, index) => {
+    for (const photoName of commonNames) {
         const photoURL = `${GITHUB_RAW_URL}/${photoName}`;
-        const img = new Image();
+        const photoIndex = photos.length;
         
-        img.onload = function() {
+        // Check if photo exists
+        const response = await fetch(photoURL, { method: 'HEAD' }).catch(() => null);
+        
+        if (response && response.ok) {
             photos.push(photoURL);
-            photosLoaded++;
-            displayPhoto(photoURL);
-            
-            // Hide no-photos message when first photo loads
-            if (photosLoaded === 1) {
-                const noPhotosMsg = document.querySelector('.no-photos-message');
-                if (noPhotosMsg) {
-                    noPhotosMsg.style.display = 'none';
-                }
-            }
-        };
-        
-        img.onerror = function() {
-            // Photo not found on GitHub, continue
-            photosLoaded++;
-        };
-        
-        img.src = photoURL;
-    });
+            displayPhoto(photoURL, photoIndex);
+            photosFound++;
+            console.log(`Found photo: ${photoName}`);
+        }
+    }
+    
+    console.log(`Found ${photosFound} photos via direct URL`);
+    
+    if (photosFound > 0 && noPhotosMsg) {
+        noPhotosMsg.style.display = 'none';
+    }
 }
 
 // Display photo in gallery
-function displayPhoto(photoURL) {
+function displayPhoto(photoURL, photoIndex) {
     const gallery = document.getElementById('photoGallery');
     
     const item = document.createElement('div');
     item.className = 'gallery-item';
-    const photoIndex = photos.length - 1;
     item.innerHTML = `<img src="${photoURL}" alt="Memory" loading="lazy">`;
     item.style.cursor = 'pointer';
     item.onclick = function(e) {
