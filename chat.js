@@ -4,53 +4,70 @@ let currentUserName = null;
 let subscription = null;
 let loadedMessageIds = new Set();
 
+// Initialize chat when DOM is ready
+document.addEventListener('DOMContentLoaded', function() {
+    const chatContainer = document.getElementById('chatContainer');
+    if (!chatContainer) return;
+
+    initializeChat();
+});
+
 // Initialize chat with unique room ID
 function initializeChat() {
-    const params = new URLSearchParams(window.location.search);
-    currentChatId = params.get('chat') || generateChatId();
-    currentUserName = localStorage.getItem('userName') || null;
+    try {
+        const params = new URLSearchParams(window.location.search);
+        currentChatId = params.get('chat') || generateChatId();
+        currentUserName = localStorage.getItem('userName') || null;
 
-    // Update URL with chat ID
-    if (!params.get('chat')) {
-        const newUrl = `${window.location.pathname}?chat=${currentChatId}`;
-        window.history.replaceState({}, '', newUrl);
-    }
+        // Update URL with chat ID
+        if (!params.get('chat')) {
+            const newUrl = `${window.location.pathname}?chat=${currentChatId}`;
+            window.history.replaceState({}, '', newUrl);
+        }
 
-    // Update chat room display
-    document.getElementById('chatRoomId').textContent = currentChatId;
-    document.getElementById('chatLink').value = `${window.location.origin}${window.location.pathname}?chat=${currentChatId}`;
-    
-    // Check if Supabase is configured
-    if (SUPABASE_URL && SUPABASE_ANON_KEY && SUPABASE_URL.includes('supabase.co')) {
-        initializeSupabaseChat();
-    } else {
+        // Update chat room display
+        const roomIdEl = document.getElementById('chatRoomId');
+        if (roomIdEl) {
+            roomIdEl.textContent = currentChatId;
+        }
+
+        const chatLinkInput = document.getElementById('chatLink');
+        if (chatLinkInput) {
+            chatLinkInput.value = `${window.location.origin}${window.location.pathname}?chat=${currentChatId}`;
+        }
+
+        // Check if Supabase is configured and loaded
+        if (typeof window.supabase !== 'undefined' && SUPABASE_URL && SUPABASE_ANON_KEY && SUPABASE_URL.includes('supabase.co')) {
+            initializeSupabaseChat();
+        } else {
+            console.log('Supabase not available, using localStorage');
+            initializeLocalChat();
+        }
+    } catch (e) {
+        console.error('Chat initialization error:', e);
         initializeLocalChat();
     }
-
-    // Show notification about sharing the link
-    showChatNotification();
 }
 
 // Supabase initialization (free real-time chat)
 function initializeSupabaseChat() {
-    // Check if Supabase library is loaded
-    if (typeof window.supabase === 'undefined') {
-        console.log('Supabase not loaded, using localStorage');
-        initializeLocalChat();
-        return;
-    }
+    try {
+        // Create Supabase client
+        window.supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        
+        if (!window.supabaseClient) {
+            console.log('Supabase client creation failed');
+            initializeLocalChat();
+            return;
+        }
 
-    // Create Supabase client
-    window.supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-    
-    if (!window.supabaseClient) {
-        console.log('Supabase client failed to initialize, using localStorage');
+        console.log('Supabase initialized successfully');
+        loadSupabaseMessages();
+        subscribeToSupabaseMessages();
+    } catch (e) {
+        console.error('Supabase initialization error:', e);
         initializeLocalChat();
-        return;
     }
-
-    loadSupabaseMessages();
-    subscribeToSupabaseMessages();
 }
 
 // Load existing messages from Supabase
@@ -65,8 +82,7 @@ async function loadSupabaseMessages() {
             .order('timestamp', { ascending: true });
 
         if (error) {
-            console.log('Loading with localStorage fallback');
-            initializeLocalChat();
+            console.log('Error loading messages:', error);
             return;
         }
 
@@ -82,8 +98,7 @@ async function loadSupabaseMessages() {
             });
         }
     } catch (e) {
-        console.log('Supabase not configured, using localStorage');
-        initializeLocalChat();
+        console.error('Load messages error:', e);
     }
 }
 
@@ -91,33 +106,39 @@ async function loadSupabaseMessages() {
 function subscribeToSupabaseMessages() {
     if (!window.supabaseClient) return;
 
-    subscription = window.supabaseClient
-        .channel(`room:${currentChatId}`)
-        .on('postgres_changes', 
-            { 
-                event: 'INSERT', 
-                schema: 'public', 
-                table: 'chat',
-                filter: `room_id=eq.${currentChatId}`
-            },
-            (payload) => {
-                const msg = payload.new;
-                if (!loadedMessageIds.has(msg.id)) {
-                    displayMessage({
-                        id: msg.id,
-                        sender: msg.sender,
-                        text: msg.text,
-                        timestamp: new Date(msg.timestamp).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
-                    });
-                    loadedMessageIds.add(msg.id);
+    try {
+        subscription = window.supabaseClient
+            .channel(`room:${currentChatId}`)
+            .on('postgres_changes', 
+                { 
+                    event: 'INSERT', 
+                    schema: 'public', 
+                    table: 'chat',
+                    filter: `room_id=eq.${currentChatId}`
+                },
+                (payload) => {
+                    const msg = payload.new;
+                    if (!loadedMessageIds.has(msg.id)) {
+                        displayMessage({
+                            id: msg.id,
+                            sender: msg.sender,
+                            text: msg.text,
+                            timestamp: new Date(msg.timestamp).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+                        });
+                        loadedMessageIds.add(msg.id);
+                    }
                 }
-            }
-        )
-        .subscribe();
+            )
+            .subscribe();
+        console.log('Subscribed to chat messages');
+    } catch (e) {
+        console.error('Subscription error:', e);
+    }
 }
 
 // Initialize chat using localStorage (fallback when Supabase not configured)
 function initializeLocalChat() {
+    console.log('Using localStorage for chat');
     const storageKey = `chat_${currentChatId}`;
     
     // Load existing messages
@@ -131,12 +152,16 @@ function initializeLocalChat() {
         }
     }
 
-    // Simulate real-time by checking for new messages
+    // Check for new messages every second
     setInterval(() => {
-        const messages = JSON.parse(localStorage.getItem(storageKey) || '[]');
-        const chatMessages = document.querySelectorAll('.chat-message');
-        if (messages.length > chatMessages.length) {
-            messages.slice(chatMessages.length).forEach(msg => displayMessage(msg));
+        try {
+            const messages = JSON.parse(localStorage.getItem(storageKey) || '[]');
+            const chatMessages = document.querySelectorAll('.chat-message');
+            if (messages.length > chatMessages.length) {
+                messages.slice(chatMessages.length).forEach(msg => displayMessage(msg));
+            }
+        } catch (e) {
+            // Ignore parse errors
         }
     }, 1000);
 }
@@ -149,6 +174,8 @@ function generateChatId() {
 // Send message
 async function sendMessage() {
     const input = document.getElementById('chatInput');
+    if (!input) return;
+
     const message = input.value.trim();
     
     if (!message) return;
@@ -187,7 +214,7 @@ async function sendMessage() {
                 return;
             }
         } catch (e) {
-            console.log('Supabase error, using localStorage');
+            console.log('Supabase insert error, using localStorage:', e);
         }
     }
 
@@ -206,14 +233,17 @@ async function sendMessage() {
 
     // Scroll to bottom
     const messagesContainer = document.getElementById('chatMessages');
-    setTimeout(() => {
-        messagesContainer.scrollTop = messagesContainer.scrollHeight;
-    }, 100);
+    if (messagesContainer) {
+        setTimeout(() => {
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }, 100);
+    }
 }
 
 // Display a message in chat
 function displayMessage(messageObj) {
     const container = document.getElementById('chatMessages');
+    if (!container) return;
     
     // Check if message already exists
     if (document.querySelector(`[data-message-id="${messageObj.id}"]`)) {
@@ -222,7 +252,7 @@ function displayMessage(messageObj) {
 
     // Remove welcome message if first message
     const welcome = document.querySelector('.chat-welcome');
-    if (welcome) {
+    if (welcome && container.children.length === 1) {
         welcome.remove();
     }
 
@@ -255,6 +285,8 @@ function escapeHtml(text) {
 // Copy link to clipboard
 function copyShareLink() {
     const input = document.getElementById('chatLink');
+    if (!input) return;
+
     input.select();
     navigator.clipboard.writeText(input.value).then(() => {
         const btn = event.target;
@@ -268,14 +300,6 @@ function copyShareLink() {
     });
 }
 
-// Show chat notification
-function showChatNotification() {
-    const notification = document.querySelector('.chat-notification');
-    if (notification) {
-        notification.style.display = 'block';
-    }
-}
-
 // Enable Enter key to send message
 document.addEventListener('DOMContentLoaded', function() {
     const chatInput = document.getElementById('chatInput');
@@ -286,12 +310,5 @@ document.addEventListener('DOMContentLoaded', function() {
                 sendMessage();
             }
         });
-    }
-});
-
-// Initialize chat when page loads
-window.addEventListener('load', function() {
-    if (document.getElementById('chatContainer')) {
-        initializeChat();
     }
 });
