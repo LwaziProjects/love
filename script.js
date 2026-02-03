@@ -463,9 +463,10 @@ function setupPhotoManagement() {
     controls.innerHTML = `
         <div class="photo-controls">
             <button class="btn-add-photo" id="addPhotoBtn">
-                ➕ Add Photo
+                ➕ Add Multiple Photos
             </button>
-            <input type="file" id="photoInput" accept="image/*" style="display: none;">
+            <p style="color: #ffb3d9; font-size: 0.9rem; margin-top: 10px;">You can select multiple photos at once</p>
+            <input type="file" id="photoInput" accept="image/*" multiple style="display: none;">
         </div>
     `;
     
