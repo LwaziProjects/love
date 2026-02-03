@@ -94,11 +94,31 @@
             <section class="section gallery-section">
                 <div class="card gallery-card">
                     <h2 class="section-title">Our Beautiful Memories 📸</h2>
+                    
+                    <!-- Photo Upload Section -->
+                    <div class="upload-section" style="margin-bottom: 30px; padding: 20px; background: rgba(255,192,203,0.1); border-radius: 10px; text-align: center;">
+                        <h3 style="margin-top: 0; color: #ff1493;">Add a New Memory</h3>
+                        <p style="margin: 10px 0; font-size: 0.95rem;">Anyone can click to upload a photo! 📷</p>
+                        <input type="file" id="photoInput" accept="image/*" style="display: none;">
+                        <button id="uploadBtn" class="upload-button" style="
+                            background: linear-gradient(135deg, #ff1493 0%, #ff69b4 100%);
+                            color: white;
+                            border: none;
+                            padding: 12px 30px;
+                            border-radius: 25px;
+                            font-size: 1rem;
+                            cursor: pointer;
+                            transition: transform 0.2s;
+                        ">
+                            📸 Click to Upload Photo
+                        </button>
+                        <p id="uploadStatus" style="font-size: 0.9rem; margin-top: 10px; color: #666;"></p>
+                    </div>
+
                     <div class="gallery-grid" id="photoGallery">
                         <!-- Photos will be loaded here -->
                         <div class="no-photos-message">
-                            <p>💭 Add your favorite photos to the 'photos' folder</p>
-                            <p style="font-size: 0.9rem; margin-top: 10px; opacity: 0.8;">Photos are kept private and won't be visible on GitHub</p>
+                            <p>💭 No photos yet - be the first to add one!</p>
                         </div>
                     </div>
                 </div>

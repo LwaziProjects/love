@@ -723,3 +723,83 @@ function addDeleteButtonsToPhotos() {
         item.appendChild(deleteBtn);
     });
 }
+// Photo upload functionality
+document.addEventListener('DOMContentLoaded', function() {
+    const uploadBtn = document.getElementById('uploadBtn');
+    const photoInput = document.getElementById('photoInput');
+    const uploadStatus = document.getElementById('uploadStatus');
+    
+    if (!uploadBtn || !photoInput) return;
+    
+    // Click upload button to open file picker
+    uploadBtn.addEventListener('click', function() {
+        photoInput.click();
+    });
+    
+    // Handle file selection
+    photoInput.addEventListener('change', async function(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+        
+        // Validate file is an image
+        if (!file.type.startsWith('image/')) {
+            uploadStatus.textContent = '❌ Please select an image file';
+            uploadStatus.style.color = '#ff0000';
+            return;
+        }
+        
+        // Show uploading status
+        uploadStatus.textContent = '⏳ Uploading...';
+        uploadStatus.style.color = '#ff69b4';
+        uploadBtn.disabled = true;
+        
+        try {
+            // Create form data
+            const formData = new FormData();
+            formData.append('photo', file);
+            
+            // Determine API URL (for local testing vs production)
+            const apiUrl = window.location.hostname === 'localhost' 
+                ? 'http://localhost:3000/api/upload' 
+                : 'https://love-api.herokuapp.com/api/upload'; // Replace with your deployed server URL
+            
+            // Upload to server
+            const response = await fetch(apiUrl, {
+                method: 'POST',
+                body: formData
+            });
+            
+            if (!response.ok) {
+                throw new Error('Upload failed');
+            }
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                uploadStatus.textContent = '✅ Photo uploaded! Refreshing gallery...';
+                uploadStatus.style.color = '#00aa00';
+                
+                // Reset file input
+                photoInput.value = '';
+                
+                // Reload photos after a short delay
+                setTimeout(() => {
+                    photos = [];
+                    const gallery = document.getElementById('photoGallery');
+                    gallery.innerHTML = '';
+                    loadPhotos();
+                    uploadStatus.textContent = '';
+                }, 2000);
+            } else {
+                uploadStatus.textContent = `❌ Error: ${data.error}`;
+                uploadStatus.style.color = '#ff0000';
+            }
+        } catch (error) {
+            console.error('Upload error:', error);
+            uploadStatus.textContent = '❌ Upload failed. Make sure the server is running.';
+            uploadStatus.style.color = '#ff0000';
+        } finally {
+            uploadBtn.disabled = false;
+        }
+    });
+});
