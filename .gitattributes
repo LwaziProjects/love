@@ -1,0 +1,14 @@
+# Image files
+*.jpg binary
+*.jpeg binary
+*.png binary
+*.gif binary
+*.webp binary
+*.svg binary
+
+# Text files
+*.md text
+*.js text
+*.css text
+*.html text
+*.json text
