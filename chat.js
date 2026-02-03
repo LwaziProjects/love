@@ -180,23 +180,36 @@ async function sendMessage() {
     
     if (!message) return;
 
+    // Prevent double submission
+    input.disabled = true;
+
     // Get user name
     let userName = currentUserName;
     if (!userName) {
         userName = prompt('What should I call you? 💕');
-        if (!userName) return;
+        if (!userName) {
+            input.disabled = false;
+            return;
+        }
         currentUserName = userName;
         localStorage.setItem('userName', userName);
     }
 
+    // Clear input immediately
+    input.value = '';
+
+    // Create message object for display (optimistic update)
     const messageObj = {
-        id: Date.now().toString(),
+        id: Date.now().toString() + Math.random(),
         sender: userName,
         text: message,
         timestamp: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
     };
 
-    // Try to save to Supabase first
+    // Display message immediately (optimistic UI)
+    displayMessage(messageObj);
+
+    // Try to save to Supabase
     if (window.supabaseClient) {
         try {
             const { error } = await window.supabaseClient
@@ -208,29 +221,24 @@ async function sendMessage() {
                 }]);
 
             if (!error) {
-                // Message will appear via subscription
-                input.value = '';
+                // Successfully saved to Supabase
                 input.focus();
+                input.disabled = false;
                 return;
+            } else {
+                console.log('Supabase insert error:', error);
             }
         } catch (e) {
             console.log('Supabase insert error, using localStorage:', e);
         }
     }
 
-    // Fallback to localStorage
+    // Fallback: also save to localStorage
     const storageKey = `chat_${currentChatId}`;
     const messages = JSON.parse(localStorage.getItem(storageKey) || '[]');
     messages.push(messageObj);
     localStorage.setItem(storageKey, JSON.stringify(messages));
-
-    // Display message
-    displayMessage(messageObj);
     
-    // Clear input
-    input.value = '';
-    input.focus();
-
     // Scroll to bottom
     const messagesContainer = document.getElementById('chatMessages');
     if (messagesContainer) {
@@ -238,6 +246,11 @@ async function sendMessage() {
             messagesContainer.scrollTop = messagesContainer.scrollHeight;
         }, 100);
     }
+
+    setTimeout(() => {
+        input.focus();
+        input.disabled = false;
+    }, 50);
 }
 
 // Display a message in chat
@@ -303,12 +316,21 @@ function copyShareLink() {
 // Enable Enter key to send message
 document.addEventListener('DOMContentLoaded', function() {
     const chatInput = document.getElementById('chatInput');
+    const sendBtn = document.querySelector('.send-btn');
+    
     if (chatInput) {
         chatInput.addEventListener('keypress', function(e) {
             if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
                 sendMessage();
             }
+        });
+    }
+    
+    if (sendBtn) {
+        sendBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            sendMessage();
         });
     }
 });
