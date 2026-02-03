@@ -1,0 +1,8 @@
+# Keep photos private - don't commit to GitHub
+photos/
+*.jpg
+*.jpeg
+*.png
+*.gif
+.DS_Store
+node_modules/
