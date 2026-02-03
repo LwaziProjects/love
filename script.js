@@ -481,18 +481,28 @@ function setupPhotoManagement() {
         fileInput.click();
     });
     
-    // Handle file selection
+    // Handle file selection - support multiple files
     fileInput.addEventListener('change', (e) => {
         const files = e.target.files;
         if (files.length > 0) {
-            for (let file of files) {
+            let loadedCount = 0;
+            
+            for (let i = 0; i < files.length; i++) {
+                const file = files[i];
                 const reader = new FileReader();
+                
                 reader.onload = (event) => {
                     addPhotoToGallery(event.target.result, file.name);
+                    loadedCount++;
+                    
+                    // Reset input after all files are loaded
+                    if (loadedCount === files.length) {
+                        fileInput.value = '';
+                    }
                 };
+                
                 reader.readAsDataURL(file);
             }
-            fileInput.value = ''; // Reset input
         }
     });
     
