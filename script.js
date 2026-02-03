@@ -21,11 +21,15 @@ const loveQuotes = [
 let currentPhotoIndex = 0;
 let photos = [];
 
-// Load photos from photos folder
+const GITHUB_REPO = 'LwaziProjects/love';
+const GITHUB_RAW_URL = `https://raw.githubusercontent.com/${GITHUB_REPO}/main/photos`;
+
+// Load photos from GitHub repository
 function loadPhotos() {
     const gallery = document.getElementById('photoGallery');
     
-    // List of photos that should exist in the photos folder
+    // Try to load photos from the photos folder in the GitHub repo
+    // Photos are now stored in the GitHub repository and accessible to everyone
     const photoNames = [
         'photo1.jpg', 'photo2.jpg', 'photo3.jpg', 'photo4.jpg', 'photo5.jpg',
         'photo6.jpg', 'photo7.jpg', 'photo8.jpg', 'photo9.jpg', 'photo10.jpg',
@@ -34,15 +38,15 @@ function loadPhotos() {
     
     let photosLoaded = 0;
     
-    // Try to load each photo
+    // Try to load each photo from GitHub
     photoNames.forEach((photoName, index) => {
-        const photoPath = `photos/${photoName}`;
+        const photoURL = `${GITHUB_RAW_URL}/${photoName}`;
         const img = new Image();
         
         img.onload = function() {
-            photos.push(photoPath);
+            photos.push(photoURL);
             photosLoaded++;
-            displayPhoto(photoPath);
+            displayPhoto(photoURL);
             
             // Hide no-photos message when first photo loads
             if (photosLoaded === 1) {
@@ -54,22 +58,22 @@ function loadPhotos() {
         };
         
         img.onerror = function() {
-            // Photo not found, continue
+            // Photo not found on GitHub, continue
             photosLoaded++;
         };
         
-        img.src = photoPath;
+        img.src = photoURL;
     });
 }
 
 // Display photo in gallery
-function displayPhoto(photoPath) {
+function displayPhoto(photoURL) {
     const gallery = document.getElementById('photoGallery');
     
     const item = document.createElement('div');
     item.className = 'gallery-item';
     const photoIndex = photos.length - 1;
-    item.innerHTML = `<img src="${photoPath}" alt="Memory" loading="lazy">`;
+    item.innerHTML = `<img src="${photoURL}" alt="Memory" loading="lazy">`;
     item.style.cursor = 'pointer';
     item.onclick = function(e) {
         e.stopPropagation();
@@ -463,9 +467,11 @@ function setupPhotoManagement() {
     controls.innerHTML = `
         <div class="photo-controls">
             <button class="btn-add-photo" id="addPhotoBtn">
-                ➕ Add Multiple Photos
+                ➕ Add Photos (Visible to Everyone)
             </button>
-            <p style="color: #ffb3d9; font-size: 0.9rem; margin-top: 10px;">You can select multiple photos at once</p>
+            <p style="color: #ffb3d9; font-size: 0.9rem; margin-top: 10px;">
+                📤 Photos are saved to GitHub and visible to everyone who visits this link
+            </p>
             <input type="file" id="photoInput" accept="image/*" multiple style="display: none;">
         </div>
     `;
@@ -498,6 +504,42 @@ function setupPhotoManagement() {
                     // Reset input after all files are loaded
                     if (loadedCount === files.length) {
                         fileInput.value = '';
+                        
+                        // Show instructions to save photos
+                        const messageDiv = document.createElement('div');
+                        messageDiv.style.cssText = `
+                            position: fixed;
+                            top: 20px;
+                            right: 20px;
+                            background: #660066;
+                            border: 2px solid #ff69b4;
+                            color: #fff;
+                            padding: 20px;
+                            border-radius: 10px;
+                            z-index: 10000;
+                            max-width: 400px;
+                            font-size: 0.95rem;
+                        `;
+                        messageDiv.innerHTML = `
+                            <div style="margin-bottom: 10px;">
+                                📸 <strong>Photos Added Locally!</strong>
+                            </div>
+                            <div style="margin-bottom: 10px;">
+                                To make them visible to everyone via the GitHub link:
+                            </div>
+                            <ol style="margin: 10px 0; padding-left: 20px;">
+                                <li>Save the photo files to: <code style="background: rgba(0,0,0,0.3); padding: 2px 5px; border-radius: 3px;">photos/</code> folder</li>
+                                <li>Git commands:
+                                    <div style="background: rgba(0,0,0,0.3); padding: 8px; border-radius: 5px; margin-top: 5px; font-family: monospace; font-size: 0.85rem;">
+                                        git add photos/<br>
+                                        git commit -m "Add photos"<br>
+                                        git push origin main
+                                    </div>
+                                </li>
+                            </ol>
+                        `;
+                        document.body.appendChild(messageDiv);
+                        setTimeout(() => messageDiv.remove(), 8000);
                     }
                 };
                 

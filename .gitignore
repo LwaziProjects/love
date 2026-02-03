@@ -1,8 +1,5 @@
-# Keep photos private - don't commit to GitHub
-photos/
-*.jpg
-*.jpeg
-*.png
-*.gif
+# Keep local temp files private
 .DS_Store
 node_modules/
+temp/
+cache/
