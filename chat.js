@@ -50,7 +50,7 @@ function initializeChat() {
 }
 
 // Supabase initialization (free real-time chat)
-function initializeSupabaseChat() {
+async function initializeSupabaseChat() {
     try {
         // Create Supabase client
         window.supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -62,8 +62,15 @@ function initializeSupabaseChat() {
         }
 
         console.log('Supabase initialized successfully');
-        loadSupabaseMessages();
+        
+        // Load existing messages first
+        await loadSupabaseMessages();
+        
+        // Then subscribe to new messages
         subscribeToSupabaseMessages();
+        
+        // Also start polling as fallback
+        startMessagePolling();
     } catch (e) {
         console.error('Supabase initialization error:', e);
         initializeLocalChat();
@@ -87,6 +94,7 @@ async function loadSupabaseMessages() {
         }
 
         if (data) {
+            console.log('Loaded messages:', data.length);
             data.forEach(msg => {
                 displayMessage({
                     id: msg.id,
@@ -102,11 +110,55 @@ async function loadSupabaseMessages() {
     }
 }
 
+// Poll for new messages as fallback
+function startMessagePolling() {
+    if (!window.supabaseClient) return;
+    
+    // Poll every 2 seconds for new messages
+    setInterval(async () => {
+        try {
+            const { data, error } = await window.supabaseClient
+                .from('chat')
+                .select('*')
+                .eq('room_id', currentChatId)
+                .order('timestamp', { ascending: false })
+                .limit(50);
+
+            if (error) {
+                console.log('Polling error:', error);
+                return;
+            }
+
+            if (data) {
+                data.forEach(msg => {
+                    if (!loadedMessageIds.has(msg.id)) {
+                        console.log('Polling found new message from:', msg.sender);
+                        displayMessage({
+                            id: msg.id,
+                            sender: msg.sender,
+                            text: msg.text,
+                            timestamp: new Date(msg.timestamp).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+                        });
+                        loadedMessageIds.add(msg.id);
+                    }
+                });
+            }
+        } catch (e) {
+            console.log('Polling error:', e);
+        }
+    }, 2000);
+}
+
 // Subscribe to new messages in real-time
 function subscribeToSupabaseMessages() {
-    if (!window.supabaseClient) return;
+    if (!window.supabaseClient) {
+        console.log('Supabase client not available');
+        return;
+    }
 
     try {
+        console.log('Setting up subscription for room:', currentChatId);
+        
         subscription = window.supabaseClient
             .channel(`room:${currentChatId}`)
             .on('postgres_changes', 
@@ -117,8 +169,12 @@ function subscribeToSupabaseMessages() {
                     filter: `room_id=eq.${currentChatId}`
                 },
                 (payload) => {
+                    console.log('Received new message:', payload);
                     const msg = payload.new;
+                    
+                    // Check if message already displayed
                     if (!loadedMessageIds.has(msg.id)) {
+                        console.log('Displaying message from:', msg.sender);
                         displayMessage({
                             id: msg.id,
                             sender: msg.sender,
@@ -126,11 +182,18 @@ function subscribeToSupabaseMessages() {
                             timestamp: new Date(msg.timestamp).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
                         });
                         loadedMessageIds.add(msg.id);
+                    } else {
+                        console.log('Message already displayed:', msg.id);
                     }
                 }
             )
-            .subscribe();
-        console.log('Subscribed to chat messages');
+            .subscribe((status) => {
+                console.log('Subscription status:', status);
+                if (status === 'SUBSCRIBED') {
+                    console.log('✓ Successfully subscribed to chat messages');
+                }
+            });
+            
     } catch (e) {
         console.error('Subscription error:', e);
     }
