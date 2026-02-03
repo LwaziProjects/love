@@ -23,13 +23,60 @@ let photos = [];
 
 const GITHUB_REPO = 'LwaziProjects/love';
 const GITHUB_RAW_URL = `https://raw.githubusercontent.com/${GITHUB_REPO}/main/photos`;
+const GITHUB_API_URL = `https://api.github.com/repos/${GITHUB_REPO}/contents/photos`;
 
-// Load photos from GitHub repository
-function loadPhotos() {
+// Load photos from GitHub repository dynamically
+async function loadPhotos() {
     const gallery = document.getElementById('photoGallery');
     
-    // Try to load photos from the photos folder in the GitHub repo
-    // Photos are now stored in the GitHub repository and accessible to everyone
+    try {
+        // Fetch the list of files from the photos folder using GitHub API
+        const response = await fetch(GITHUB_API_URL);
+        
+        if (!response.ok) {
+            console.error('Failed to fetch photos from GitHub API');
+            return;
+        }
+        
+        const files = await response.json();
+        
+        // Filter for image files only
+        const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'];
+        const photoFiles = files.filter(file => {
+            const ext = file.name.split('.').pop().toLowerCase();
+            return file.type === 'file' && imageExtensions.includes(ext);
+        });
+        
+        // Sort photos alphabetically
+        photoFiles.sort((a, b) => a.name.localeCompare(b.name));
+        
+        if (photoFiles.length === 0) {
+            console.log('No photos found in the photos folder');
+            return;
+        }
+        
+        // Load each photo
+        photoFiles.forEach((file) => {
+            const photoURL = `${GITHUB_RAW_URL}/${file.name}`;
+            displayPhoto(photoURL);
+        });
+        
+        // Hide no-photos message when photos are loaded
+        if (photoFiles.length > 0) {
+            const noPhotosMsg = document.querySelector('.no-photos-message');
+            if (noPhotosMsg) {
+                noPhotosMsg.style.display = 'none';
+            }
+        }
+    } catch (error) {
+        console.error('Error loading photos:', error);
+        // Fallback: try to load photos with standard names
+        loadPhotosWithStandardNames();
+    }
+}
+
+// Fallback function to load photos with standard names
+function loadPhotosWithStandardNames() {
     const photoNames = [
         'photo1.jpg', 'photo2.jpg', 'photo3.jpg', 'photo4.jpg', 'photo5.jpg',
         'photo6.jpg', 'photo7.jpg', 'photo8.jpg', 'photo9.jpg', 'photo10.jpg',

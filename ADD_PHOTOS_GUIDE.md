@@ -6,10 +6,15 @@ Photos are now stored in the GitHub repository and will be visible to **everyone
 
 ### Step 1: Prepare Your Photos
 1. You can add photos directly to the `photos/` folder on your computer
-2. Name them: `photo1.jpg`, `photo2.jpg`, `photo3.jpg`, etc.
-3. You can also use:
-   - `photo1.png`, `photo1.jpeg`, `photo2.gif` (any image format)
-   - Or give them any name like `memory1.jpg`, `beach.png`, etc.
+2. Name them anything you want:
+   - `photo1.jpg`, `memory.jpg`, `beach.png`
+   - `date_night.jpg`, `camping.png`, etc.
+3. Supported formats:
+   - `.jpg` / `.jpeg`
+   - `.png`
+   - `.gif`
+   - `.webp`
+   - `.svg`
 
 ### Step 2: Save Photos to the Folder
 Copy your images to: `c:\Users\0174988\Downloads\usefulstuff\valentines\photos\`
@@ -33,11 +38,15 @@ That's it! The photos will now be **visible to everyone** who visits:
 
 ## Important Notes:
 
+✅ **Dynamic Loading**: The website automatically discovers and displays ALL photos in the `photos` folder - no need to hardcode filenames anymore!
+
 ✅ **Public Photos**: Once you commit photos to GitHub, they will be visible in your repository and on the website
 
 ✅ **Anyone Can See**: Anyone with the link can view the website and all the photos
 
 ✅ **Always Available**: Unlike the old system, the photos persist across page reloads and for all visitors
+
+✅ **Any Filename**: You can name photos anything you want - they'll all be found and displayed!
 
 ❌ **Won't Delete Locally**: If you delete a photo from the website, it will still be in git history. To truly remove it, use:
 ```bash
