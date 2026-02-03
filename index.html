@@ -243,6 +243,45 @@
                 </button>
             </section>
 
+            <!-- Chat Section -->
+            <section class="section chat-section">
+                <div class="card chat-card">
+                    <h2 class="section-title">💬 Chat With Your Love 💬</h2>
+                    
+                    <div class="chat-notification">
+                        <p>💡 Share this link with your special someone to chat together:</p>
+                        <div class="share-link-container">
+                            <input type="text" id="chatLink" readonly class="chat-link-input">
+                            <button onclick="copyShareLink()" class="copy-link-btn">📋 Copy Link</button>
+                        </div>
+                    </div>
+
+                    <div id="chatContainer" class="chat-container">
+                        <div class="chat-header">
+                            <h3>💕 Private Chat Room</h3>
+                            <p class="chat-room-info">Room ID: <span id="chatRoomId">loading...</span></p>
+                        </div>
+                        
+                        <div id="chatMessages" class="chat-messages">
+                            <div class="chat-welcome">
+                                <p>👋 Welcome to your private chat!</p>
+                                <p>💌 Share the link above with your love, and start chatting together.</p>
+                            </div>
+                        </div>
+                        
+                        <div class="chat-input-container">
+                            <textarea 
+                                id="chatInput" 
+                                class="chat-input" 
+                                placeholder="Type your message here... (Press Enter to send)"
+                                rows="3"
+                            ></textarea>
+                            <button onclick="sendMessage()" class="send-btn">Send 💕</button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
             <!-- Footer -->
             <section class="section">
                 <div class="footer-message">
@@ -257,5 +296,6 @@
     </div>
 
     <script src="script.js"></script>
+    <script src="chat.js"></script>
 </body>
 </html>
