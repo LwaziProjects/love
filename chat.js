@@ -32,27 +32,22 @@ function initializeChat() {
 }
 
 // Supabase initialization (free real-time chat)
-async function initializeSupabaseChat() {
-    // Load Supabase library from CDN
-    const script = document.createElement('script');
-    script.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.38.0/+esm';
-    script.type = 'module';
-    script.textContent = `
-        import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.38.0/+esm';
-        window.supabaseClient = createClient('${SUPABASE_URL}', '${SUPABASE_ANON_KEY}');
-        window.supabaseReady = true;
-    `;
-    document.head.appendChild(script);
+function initializeSupabaseChat() {
+    // Check if Supabase library is loaded
+    if (typeof window.supabase === 'undefined') {
+        console.log('Supabase not loaded, using localStorage');
+        initializeLocalChat();
+        return;
+    }
 
-    // Wait for Supabase to load
-    await new Promise(resolve => {
-        const checkInterval = setInterval(() => {
-            if (window.supabaseReady) {
-                clearInterval(checkInterval);
-                resolve();
-            }
-        }, 100);
-    });
+    // Create Supabase client
+    window.supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    
+    if (!window.supabaseClient) {
+        console.log('Supabase client failed to initialize, using localStorage');
+        initializeLocalChat();
+        return;
+    }
 
     loadSupabaseMessages();
     subscribeToSupabaseMessages();
