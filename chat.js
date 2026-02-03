@@ -82,6 +82,7 @@ async function loadSupabaseMessages() {
     if (!window.supabaseClient) return;
     
     try {
+        console.log('Loading messages for room:', currentChatId);
         const { data, error } = await window.supabaseClient
             .from('chat')
             .select('*')
@@ -89,13 +90,14 @@ async function loadSupabaseMessages() {
             .order('timestamp', { ascending: true });
 
         if (error) {
-            console.log('Error loading messages:', error);
+            console.error('Error loading messages:', error);
             return;
         }
 
         if (data) {
-            console.log('Loaded messages:', data.length);
+            console.log(`Loaded ${data.length} messages from Supabase for room ${currentChatId}:`);
             data.forEach(msg => {
+                console.log(`  - From ${msg.sender}: "${msg.text}" (${msg.id})`);
                 displayMessage({
                     id: msg.id,
                     sender: msg.sender,
@@ -104,6 +106,8 @@ async function loadSupabaseMessages() {
                 });
                 loadedMessageIds.add(msg.id);
             });
+        } else {
+            console.log('No messages found in Supabase');
         }
     } catch (e) {
         console.error('Load messages error:', e);
@@ -112,10 +116,15 @@ async function loadSupabaseMessages() {
 
 // Poll for new messages as fallback
 function startMessagePolling() {
-    if (!window.supabaseClient) return;
+    if (!window.supabaseClient) {
+        console.log('Supabase client not available for polling');
+        return;
+    }
+    
+    console.log('Starting message polling every 2 seconds');
     
     // Poll every 2 seconds for new messages
-    setInterval(async () => {
+    window.messagePollingInterval = setInterval(async () => {
         try {
             const { data, error } = await window.supabaseClient
                 .from('chat')
@@ -125,14 +134,20 @@ function startMessagePolling() {
                 .limit(50);
 
             if (error) {
-                console.log('Polling error:', error);
+                console.error('Polling error:', error);
                 return;
             }
 
-            if (data) {
-                data.forEach(msg => {
-                    if (!loadedMessageIds.has(msg.id)) {
-                        console.log('Polling found new message from:', msg.sender);
+            if (data && data.length > 0) {
+                console.log(`Polling: Found ${data.length} messages, ${loadedMessageIds.size} already loaded`);
+                
+                // Process in reverse order (oldest first)
+                const newMessages = data.reverse().filter(msg => !loadedMessageIds.has(msg.id));
+                
+                if (newMessages.length > 0) {
+                    console.log(`Polling found ${newMessages.length} new message(s)`);
+                    newMessages.forEach(msg => {
+                        console.log('New message from:', msg.sender, 'Text:', msg.text);
                         displayMessage({
                             id: msg.id,
                             sender: msg.sender,
@@ -140,11 +155,13 @@ function startMessagePolling() {
                             timestamp: new Date(msg.timestamp).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
                         });
                         loadedMessageIds.add(msg.id);
-                    }
-                });
+                    });
+                }
+            } else if (data) {
+                console.log('Polling: No messages found');
             }
         } catch (e) {
-            console.log('Polling error:', e);
+            console.error('Polling error:', e);
         }
     }, 2000);
 }
@@ -209,19 +226,26 @@ function initializeLocalChat() {
     if (existingMessages) {
         try {
             const messages = JSON.parse(existingMessages);
+            console.log('Loaded from localStorage:', messages.length, 'messages');
             messages.forEach(msg => displayMessage(msg));
+            messages.forEach(msg => loadedMessageIds.add(msg.id));
         } catch (e) {
-            console.log('No previous messages');
+            console.log('No previous messages in localStorage');
         }
     }
 
     // Check for new messages every second
-    setInterval(() => {
+    window.localStoragePollingInterval = setInterval(() => {
         try {
             const messages = JSON.parse(localStorage.getItem(storageKey) || '[]');
-            const chatMessages = document.querySelectorAll('.chat-message');
-            if (messages.length > chatMessages.length) {
-                messages.slice(chatMessages.length).forEach(msg => displayMessage(msg));
+            const newMessages = messages.filter(msg => !loadedMessageIds.has(msg.id));
+            
+            if (newMessages.length > 0) {
+                console.log('Found', newMessages.length, 'new localStorage messages');
+                newMessages.forEach(msg => {
+                    displayMessage(msg);
+                    loadedMessageIds.add(msg.id);
+                });
             }
         } catch (e) {
             // Ignore parse errors
