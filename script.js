@@ -754,51 +754,69 @@ document.addEventListener('DOMContentLoaded', function() {
         uploadBtn.disabled = true;
         
         try {
-            // Create form data
-            const formData = new FormData();
-            formData.append('photo', file);
+            // Convert file to base64
+            const reader = new FileReader();
             
-            // Determine API URL (for local testing vs production)
-            const apiUrl = window.location.hostname === 'localhost' 
-                ? 'http://localhost:3000/api/upload' 
-                : 'https://love-api.herokuapp.com/api/upload'; // Replace with your deployed server URL
-            
-            // Upload to server
-            const response = await fetch(apiUrl, {
-                method: 'POST',
-                body: formData
-            });
-            
-            if (!response.ok) {
-                throw new Error('Upload failed');
-            }
-            
-            const data = await response.json();
-            
-            if (data.success) {
-                uploadStatus.textContent = '✅ Photo uploaded! Refreshing gallery...';
-                uploadStatus.style.color = '#00aa00';
+            reader.onload = async function(e) {
+                const base64Content = e.target.result;
                 
-                // Reset file input
-                photoInput.value = '';
+                // Determine API URL
+                const apiUrl = window.location.hostname === 'localhost' 
+                    ? 'http://localhost:3000/api/upload' 
+                    : '/api/upload'; // Serverless function on same domain
                 
-                // Reload photos after a short delay
-                setTimeout(() => {
-                    photos = [];
-                    const gallery = document.getElementById('photoGallery');
-                    gallery.innerHTML = '';
-                    loadPhotos();
-                    uploadStatus.textContent = '';
-                }, 2000);
-            } else {
-                uploadStatus.textContent = `❌ Error: ${data.error}`;
+                // Upload to server
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        fileContent: base64Content,
+                        fileName: file.name
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Upload failed');
+                }
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    uploadStatus.textContent = '✅ Photo uploaded! Refreshing gallery...';
+                    uploadStatus.style.color = '#00aa00';
+                    
+                    // Reset file input
+                    photoInput.value = '';
+                    
+                    // Reload photos after a short delay
+                    setTimeout(() => {
+                        photos = [];
+                        const gallery = document.getElementById('photoGallery');
+                        gallery.innerHTML = '';
+                        loadPhotos();
+                        uploadStatus.textContent = '';
+                    }, 2000);
+                } else {
+                    uploadStatus.textContent = `❌ Error: ${data.error}`;
+                    uploadStatus.style.color = '#ff0000';
+                }
+            };
+            
+            reader.onerror = function() {
+                uploadStatus.textContent = '❌ Failed to read file';
                 uploadStatus.style.color = '#ff0000';
-            }
+                uploadBtn.disabled = false;
+            };
+            
+            // Read the file as base64
+            reader.readAsDataURL(file);
+            
         } catch (error) {
             console.error('Upload error:', error);
-            uploadStatus.textContent = '❌ Upload failed. Make sure the server is running.';
+            uploadStatus.textContent = '❌ Upload failed. Please try again.';
             uploadStatus.style.color = '#ff0000';
-        } finally {
             uploadBtn.disabled = false;
         }
     });

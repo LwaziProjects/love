@@ -3,3 +3,9 @@
 node_modules/
 temp/
 cache/
+
+# Environment variables (contains secrets)
+.env
+
+# Uploads folder (temporary storage)
+uploads/
