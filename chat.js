@@ -239,9 +239,10 @@ async function sendMessage() {
     const input = document.getElementById('chatInput');
     if (!input) return;
 
-    const message = input.value.trim();
+    // Don't trim - preserve spaces! Only trim leading/trailing
+    const message = input.value;
     
-    if (!message) return;
+    if (!message || !message.trim()) return;
 
     // Prevent double submission
     input.disabled = true;
@@ -265,7 +266,7 @@ async function sendMessage() {
     const messageObj = {
         id: Date.now().toString() + Math.random(),
         sender: userName,
-        text: message,
+        text: message.trim(),
         timestamp: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
     };
 
@@ -282,7 +283,7 @@ async function sendMessage() {
                 .insert([{
                     room_id: currentChatId,
                     sender: userName,
-                    text: message
+                    text: messageObj.text
                 }]);
 
             if (!error) {
@@ -344,12 +345,21 @@ function displayMessage(messageObj) {
     const messageEl = document.createElement('div');
     messageEl.className = messageObj.sender === currentUserName ? 'chat-message sent' : 'chat-message received';
     messageEl.setAttribute('data-message-id', messageObj.id);
+    
+    // Add delete button only for own messages
+    const deleteBtn = messageObj.sender === currentUserName ? `
+        <button class="delete-message-btn" onclick="deleteMessage('${messageObj.id}', event)" title="Delete message">
+            ✕
+        </button>
+    ` : '';
+    
     messageEl.innerHTML = `
         <div class="message-content">
             <div class="message-sender">${escapeHtml(messageObj.sender)}</div>
             <div class="message-text">${escapeHtml(messageObj.text)}</div>
             <div class="message-time">${messageObj.timestamp}</div>
         </div>
+        ${deleteBtn}
     `;
     
     container.appendChild(messageEl);
@@ -358,6 +368,65 @@ function displayMessage(messageObj) {
     setTimeout(() => {
         container.scrollTop = container.scrollHeight;
     }, 100);
+}
+
+// Delete a message
+async function deleteMessage(messageId, event) {
+    if (event) {
+        event.preventDefault();
+        event.stopPropagation();
+    }
+
+    if (!confirm('Delete this message?')) {
+        return;
+    }
+
+    // Remove from UI immediately
+    const messageEl = document.querySelector(`[data-message-id="${messageId}"]`);
+    if (messageEl) {
+        messageEl.style.opacity = '0.5';
+    }
+
+    // Try to delete from Supabase
+    if (window.supabaseClient) {
+        try {
+            const { error } = await window.supabaseClient
+                .from('chat')
+                .delete()
+                .eq('id', messageId);
+
+            if (!error) {
+                console.log('Message deleted from Supabase');
+                if (messageEl) {
+                    messageEl.style.display = 'none';
+                }
+                loadedMessageIds.delete(messageId);
+            } else {
+                console.log('Delete error:', error);
+                if (messageEl) {
+                    messageEl.style.opacity = '1';
+                }
+                alert('Failed to delete message');
+            }
+        } catch (e) {
+            console.log('Delete error:', e);
+            if (messageEl) {
+                messageEl.style.opacity = '1';
+            }
+            alert('Failed to delete message');
+        }
+    } else {
+        // Fallback: remove from localStorage
+        const storageKey = `chat_${currentChatId}`;
+        const messages = JSON.parse(localStorage.getItem(storageKey) || '[]');
+        const filtered = messages.filter(m => m.id !== messageId);
+        localStorage.setItem(storageKey, JSON.stringify(filtered));
+        
+        if (messageEl) {
+            messageEl.style.display = 'none';
+        }
+        loadedMessageIds.delete(messageId);
+    }
 }
 
 // Escape HTML to prevent XSS
