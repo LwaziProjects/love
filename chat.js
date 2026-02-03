@@ -209,6 +209,8 @@ async function sendMessage() {
     // Display message immediately (optimistic UI)
     displayMessage(messageObj);
 
+    let messageSent = false;
+
     // Try to save to Supabase
     if (window.supabaseClient) {
         try {
@@ -221,23 +223,29 @@ async function sendMessage() {
                 }]);
 
             if (!error) {
-                // Successfully saved to Supabase
-                input.focus();
-                input.disabled = false;
-                return;
+                messageSent = true;
+                console.log('Message sent to Supabase');
             } else {
                 console.log('Supabase insert error:', error);
             }
         } catch (e) {
-            console.log('Supabase insert error, using localStorage:', e);
+            console.log('Supabase error:', e);
         }
     }
 
     // Fallback: also save to localStorage
-    const storageKey = `chat_${currentChatId}`;
-    const messages = JSON.parse(localStorage.getItem(storageKey) || '[]');
-    messages.push(messageObj);
-    localStorage.setItem(storageKey, JSON.stringify(messages));
+    if (!messageSent) {
+        try {
+            const storageKey = `chat_${currentChatId}`;
+            const messages = JSON.parse(localStorage.getItem(storageKey) || '[]');
+            messages.push(messageObj);
+            localStorage.setItem(storageKey, JSON.stringify(messages));
+            messageSent = true;
+            console.log('Message saved to localStorage');
+        } catch (e) {
+            console.log('localStorage error:', e);
+        }
+    }
     
     // Scroll to bottom
     const messagesContainer = document.getElementById('chatMessages');
@@ -247,10 +255,11 @@ async function sendMessage() {
         }, 100);
     }
 
+    // Re-enable input after short delay
     setTimeout(() => {
-        input.focus();
         input.disabled = false;
-    }, 50);
+        input.focus();
+    }, 100);
 }
 
 // Display a message in chat
@@ -319,16 +328,29 @@ document.addEventListener('DOMContentLoaded', function() {
     const sendBtn = document.querySelector('.send-btn');
     
     if (chatInput) {
-        chatInput.addEventListener('keypress', function(e) {
+        // Use keydown instead of keypress for better mobile support
+        chatInput.addEventListener('keydown', function(e) {
+            // Only intercept Enter key, not other keys like space
             if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
                 sendMessage();
             }
         });
+
+        // Ensure textarea is properly enabled/disabled
+        chatInput.addEventListener('focus', function() {
+            this.disabled = false;
+        });
     }
     
     if (sendBtn) {
         sendBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            sendMessage();
+        });
+
+        // Also handle touch end for better mobile support
+        sendBtn.addEventListener('touchend', function(e) {
             e.preventDefault();
             sendMessage();
         });

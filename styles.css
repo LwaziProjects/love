@@ -1342,6 +1342,18 @@ body {
     font-size: 1rem;
     resize: none;
     transition: all 0.3s ease;
+    -webkit-appearance: none;
+    -webkit-border-radius: 8px;
+    box-sizing: border-box;
+}
+
+.chat-input:disabled {
+    opacity: 1;
+    cursor: not-allowed;
+}
+
+.chat-input:not(:disabled) {
+    cursor: text;
 }
 
 .chat-input:focus {
